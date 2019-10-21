@@ -886,12 +886,12 @@ qreal calcExpecPauliSum(Qureg qureg, enum pauliOpType* allPauliCodes, qreal* ter
     return statevec_calcExpecPauliSum(qureg, allPauliCodes, termCoeffs, numSumTerms, workspace);
 }
 
-qreal calcHilbertSchmidtDistance(Qureg a, Qureg b) {
-    validateDensityMatrQureg(a, __func__);
-    validateDensityMatrQureg(b, __func__);
-    validateMatchingQuregDims(a, b, __func__);
+qreal calcHilbertSchmidtDistance(Qureg rho1, Qureg rho2) {
+    validateDensityMatrQureg(rho1, __func__);
+    validateDensityMatrQureg(rho2, __func__);
+    validateMatchingQuregDims(rho1, rho2, __func__);
     
-    return densmatr_calcHilbertSchmidtDistance(a, b);
+    return densmatr_calcHilbertSchmidtDistance(rho1, rho2);
 }
 
 

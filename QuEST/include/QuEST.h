@@ -2840,30 +2840,30 @@ void mixTwoQubitKrausMap(Qureg qureg, int target1, int target2, ComplexMatrix4 *
  */
 void mixMultiQubitKrausMap(Qureg qureg, int* targets, int numTargets, ComplexMatrixN* ops, int numOps);
 
-/** Computes the Hilbert Schmidt distance between two density matrices \p a and \p b, 
+/** Computes the Hilbert Schmidt distance between two density matrices \p rho1 and \p rho2, 
  * defined as the Frobenius norm of the difference between them.
  * That is, we define the Hilbert Schmidt distance
  * \f[
-    D(a, b) = \| a - b \|_F = \sqrt{  \text{Tr}[ (a-b)(a-b)^\dagger ]   }
+    D(\rho_1, \rho_2) = \| \rho_1 - \rho_2 \|_F = \sqrt{  \text{Tr}[ (\rho_1-\rho_2)^\dagger(\rho_1-\rho_2) ]   }
  * \f]
  * This is equivalent to the square-root of the sum of the absolute value squared of the 
  * element-differences of the matrices, i.e.
  * \f[
-    D(a, b) = \sqrt{ \sum\limits_i \sum\limits_j | a_{ij} - b_{ij} |^2 }
+    D(\rho_1, \rho_2) = \sqrt{ \sum\limits_i \sum\limits_j | (\rho_1)_{ij} - (\rho_2)_{ij} |^2 }
  * \f]
  * We caution this may differ by some definitions of the Hilbert Schmidt distance 
  * by a square-root.
  *
  * @ingroup calc
- * @param[in] a a density matrix
- * @param[in] b an equally-sized density matrix
+ * @param[in] rho1 a density matrix
+ * @param[in] rho2 an equally-sized density matrix
  * @throws exitWithError
- *      if either \p a or \p b are not density matrices,
- *      or if \p a and \p have mismatching dimensions.
+ *      if either \p rho1 or \p rho2 are not density matrices,
+ *      or if \p rho1 and \p rho2 have mismatching dimensions.
  * @author Balint Koczor
  * @author Tyson Jones (refactored, doc)
  */
-qreal calcHilbertSchmidtDistance(Qureg a, Qureg b);
+qreal calcHilbertSchmidtDistance(Qureg rho1, Qureg rho2);
 
 /** Modifies qureg \p out to the result of (\p facOut \p out + \p fac1 \p qureg1 + \p fac2 \p qureg2), 
  * imposing no constraints on normalisation. Works for both statevectors and density matrices.
