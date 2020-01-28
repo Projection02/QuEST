@@ -191,6 +191,15 @@ typedef struct Qureg
     
 } Qureg;
 
+typedef struct Paralist
+{
+    Complex alpha[30];
+    Complex beta[30];
+} Paralist;
+void addpara(const int controlQubit, Complex alpha, Complex beta);
+int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit, Paralist paralist);
+int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta);
+
 /** Information about the environment the program is running in.
  * In practice, this holds info about MPI ranks and helps to hide MPI initialization code
  *

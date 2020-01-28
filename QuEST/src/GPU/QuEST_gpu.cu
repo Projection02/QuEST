@@ -19,7 +19,8 @@
 # define REDUCE_SHARED_SIZE 512
 # define DEBUG 0
 
-
+int grouptargetQubit;
+Paralist paralist;
 
 /*
  * struct types for concisely passing unitaries to kernels
@@ -139,7 +140,12 @@ __forceinline__ __device__ long long int insertZeroBits(long long int number, in
      return number;
 }
 
-
+//
+__forceinline__ __device__ void swapint (int &int1, int &int2) {
+    int temp = int2;
+    int2 = int1;
+    int1 = temp;
+}
 
 /*
  * state vector and density matrix operations 
@@ -788,10 +794,108 @@ __global__ void statevec_controlledCompactUnitaryKernel (Qureg qureg, const int 
 
 void statevec_controlledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta) 
 {
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_controlledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, alpha, beta);
+    addcontrolledCompactUnitary(qureg, controlQubit, targetQubit, alpha, beta);
+}
+
+__global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const int targetQubit, Paralist paralist){
+    // ----- sizes
+    long long int sizeBlock,                                           // size of blocks
+         sizeHalfBlock;                                       // size of blocks halved
+    // ----- indices
+    long long int thisBlock,                                           // current block
+         indexUp,indexLo;                                     // current index and corresponding index in lower half block
+
+    // ----- temp variables
+    qreal   stateRealUp[2],stateRealLo[2],                             // storage for previous state values
+           stateImagUp[2],stateImagLo[2];                             // (used in updates)
+    // ----- temp variables
+    long long int thisTask;                                   // task based approach for expose loop with small granularity
+    const long long int numTasks=qureg.numAmpsPerChunk>>1;
+    int controlBit;
+
+    sizeHalfBlock = 1LL << targetQubit;                               // size of blocks halved
+    sizeBlock     = 2LL * sizeHalfBlock;                           // size of blocks
+
+    // ---------------------------------------------------------------- //
+    //            rotate                                                //
+    // ---------------------------------------------------------------- //
+
+    //! fix -- no necessary for GPU version
+    qreal *stateVecReal = qureg.deviceStateVec.real;
+    qreal *stateVecImag = qureg.deviceStateVec.imag;
+    // qreal alphaImag=alpha.imag, alphaReal=alpha.real;
+    // qreal betaImag=beta.imag, betaReal=beta.real;
+    qreal alphaReal,alphaImag,betaReal,betaImag;
+
+    thisTask = blockIdx.x*blockDim.x + threadIdx.x;
+    if (thisTask>=numTasks) return;
+
+    thisBlock   = thisTask / sizeHalfBlock;
+    indexUp     = thisBlock*sizeBlock + thisTask%sizeHalfBlock;
+    indexLo     = indexUp + sizeHalfBlock;
+
+    // store current state vector values in temp variables
+    stateRealUp[0] = stateVecReal[indexUp];
+    stateImagUp[0] = stateVecImag[indexUp];
+
+    stateRealLo[0] = stateVecReal[indexLo];
+    stateImagLo[0] = stateVecImag[indexLo];
+    int i;
+    int source=0;
+    int des=1;
+    for (i=0;i<targetQubit;++i)
+    {
+        controlBit = extractBit(i, indexUp);
+        if (controlBit){
+            alphaImag=paralist.alpha[i].imag, alphaReal=paralist.alpha[i].real;
+            betaImag=paralist.beta[i].imag, betaReal=paralist.beta[i].real;
+            // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
+            stateRealUp[des] = alphaReal*stateRealUp[source] - alphaImag*stateImagUp[source] 
+                - betaReal*stateRealLo[source] - betaImag*stateImagLo[source];
+            stateImagUp[des] = alphaReal*stateImagUp[source] + alphaImag*stateRealUp[source] 
+                - betaReal*stateImagLo[source] + betaImag*stateRealLo[source];
+
+            // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
+            stateRealLo[des] = betaReal*stateRealUp[source] - betaImag*stateImagUp[source] 
+                + alphaReal*stateRealLo[source] + alphaImag*stateImagLo[source];
+            stateImagLo[des] = betaReal*stateImagUp[source] + betaImag*stateRealUp[source] 
+                + alphaReal*stateImagLo[source] - alphaImag*stateRealLo[source];
+            swapint(source, des);
+        }
+    }
+    // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
+    stateVecReal[indexUp] = stateRealUp[source];
+    stateVecImag[indexUp] = stateImagUp[source];
+
+    // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
+    stateVecReal[indexLo] = stateRealLo[source];
+    stateVecImag[indexLo] = stateImagLo[source];
+}
+
+void addpara(const int controlQubit, Complex alpha, Complex beta){
+    paralist.alpha[controlQubit] = alpha;
+    paralist.beta[controlQubit] = beta;
+}
+
+int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta){
+    addpara(controlQubit, alpha, beta);
+    if (controlQubit == targetQubit-1){
+        statevec_groupcontrolledCompactUnitary(qureg, targetQubit, paralist);
+    }
+    return 0;
+}
+
+int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit, Paralist paralist){
     int threadsPerCUDABlock, CUDABlocks;
     threadsPerCUDABlock = 128;
     CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    statevec_controlledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, alpha, beta);
+    // cudaMemcpy(deviceparalist, paralist, 60*sizeof(Complex), cudaMemcpyHostToDevice);
+    statevec_groupcontrolledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, paralist);
+    return 0;
 }
 
 __global__ void statevec_unitaryKernel(Qureg qureg, const int targetQubit, ArgMatrix2 u){
