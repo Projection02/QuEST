@@ -19,9 +19,6 @@
 # define REDUCE_SHARED_SIZE 512
 # define DEBUG 0
 
-int grouptargetQubit;
-Paralist paralist;
-
 /*
  * struct types for concisely passing unitaries to kernels
  */
@@ -308,6 +305,10 @@ void statevec_createQureg(Qureg *qureg, int numQubits, QuESTEnv env)
     qureg->chunkId = env.rank;
     qureg->numChunks = env.numRanks;
     qureg->isDensityMatrix = 0;
+
+    //my
+    qureg->paralist = new Complex[64];
+    cudaMalloc(&(qureg->deviceparalist), 64*sizeof(Complex));
 
     // allocate GPU memory
     cudaMalloc(&(qureg->deviceStateVec.real), qureg->numAmpsPerChunk*sizeof(*(qureg->deviceStateVec.real)));
@@ -801,7 +802,7 @@ void statevec_controlledCompactUnitary(Qureg qureg, const int controlQubit, cons
     addcontrolledCompactUnitary(qureg, controlQubit, targetQubit, alpha, beta);
 }
 
-__global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const int targetQubit, Paralist paralist){
+__global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const int targetQubit){
     // ----- sizes
     long long int sizeBlock,                                           // size of blocks
          sizeHalfBlock;                                       // size of blocks halved
@@ -851,8 +852,8 @@ __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const
     {
         controlBit = extractBit(i, indexUp);
         if (controlBit){
-            alphaImag=paralist.alpha[i].imag, alphaReal=paralist.alpha[i].real;
-            betaImag=paralist.beta[i].imag, betaReal=paralist.beta[i].real;
+            alphaImag=qureg.deviceparalist[i].imag, alphaReal=qureg.deviceparalist[i].real;
+            betaImag=qureg.deviceparalist[i+32].imag, betaReal=qureg.deviceparalist[i+32].real;
             // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
             stateRealUp[des] = alphaReal*stateRealUp[source] - alphaImag*stateImagUp[source] 
                 - betaReal*stateRealLo[source] - betaImag*stateImagLo[source];
@@ -876,25 +877,25 @@ __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const
     stateVecImag[indexLo] = stateImagLo[source];
 }
 
-void addpara(const int controlQubit, Complex alpha, Complex beta){
-    paralist.alpha[controlQubit] = alpha;
-    paralist.beta[controlQubit] = beta;
+void addpara(Qureg qureg, const int controlQubit, Complex alpha, Complex beta){
+    qureg.paralist[controlQubit] = alpha;
+    qureg.paralist[controlQubit+32] = beta;
 }
 
 int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta){
-    addpara(controlQubit, alpha, beta);
+    addpara(qureg, controlQubit, alpha, beta);
     if (controlQubit == targetQubit-1){
-        statevec_groupcontrolledCompactUnitary(qureg, targetQubit, paralist);
+        statevec_groupcontrolledCompactUnitary(qureg, targetQubit);
     }
     return 0;
 }
 
-int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit, Paralist paralist){
+int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit){
     int threadsPerCUDABlock, CUDABlocks;
     threadsPerCUDABlock = 128;
     CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    // cudaMemcpy(deviceparalist, paralist, 60*sizeof(Complex), cudaMemcpyHostToDevice);
-    statevec_groupcontrolledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, paralist);
+    cudaMemcpy(qureg.deviceparalist, qureg.paralist, 64*sizeof(Complex), cudaMemcpyHostToDevice);
+    statevec_groupcontrolledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
     return 0;
 }
 

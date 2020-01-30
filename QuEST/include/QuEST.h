@@ -188,16 +188,14 @@ typedef struct Qureg
 
     //! Storage for generated QASM output
     QASMLogger* qasmLog;
+
+    Complex *paralist;
+    Complex *deviceparalist;
     
 } Qureg;
 
-typedef struct Paralist
-{
-    Complex alpha[30];
-    Complex beta[30];
-} Paralist;
-void addpara(const int controlQubit, Complex alpha, Complex beta);
-int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit, Paralist paralist);
+void addpara(Qureg qureg, const int controlQubit, Complex alpha, Complex beta);
+int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit);
 int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta);
 
 /** Information about the environment the program is running in.
