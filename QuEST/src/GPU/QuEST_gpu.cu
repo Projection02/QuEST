@@ -892,7 +892,7 @@ int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int t
 
 int statevec_groupcontrolledCompactUnitary(Qureg qureg, const int targetQubit){
     int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
+    threadsPerCUDABlock = 512;
     CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
     cudaMemcpy(qureg.deviceparalist, qureg.paralist, 64*sizeof(Complex), cudaMemcpyHostToDevice);
     statevec_groupcontrolledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
