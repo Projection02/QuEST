@@ -138,10 +138,10 @@ __forceinline__ __device__ long long int insertZeroBits(long long int number, in
 }
 
 //
-__forceinline__ __device__ void swapint (int &int1, int &int2) {
-    int temp = int2;
-    int2 = int1;
-    int1 = temp;
+__forceinline__ __device__ void swapint (int &a, int &b) {
+    a = a ^ b;
+    b = a ^ b;
+    a = a ^ b;
 }
 
 /*
