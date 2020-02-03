@@ -804,22 +804,24 @@ void statevec_controlledCompactUnitary(Qureg qureg, const int controlQubit, cons
 
 __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const int targetQubit){
     // ----- sizes
-    long long int sizeBlock,                                           // size of blocks
-         sizeHalfBlock;                                       // size of blocks halved
+    // long long int sizeBlock,                                           // size of blocks
+    //      sizeHalfBlock;                                       // size of blocks halved
+    long long int sizeHalfBlock;                                       // size of blocks halved
     // ----- indices
-    long long int thisBlock,                                           // current block
-         indexUp,indexLo;                                     // current index and corresponding index in lower half block
+    // long long int thisBlock,                                           // current block
+    //      indexUp,indexLo;                                     // current index and corresponding index in lower half block
+    long long int indexUp,indexLo;                                     // current index and corresponding index in lower half block
 
     // ----- temp variables
-    qreal   stateRealUp[2],stateRealLo[2],                             // storage for previous state values
-           stateImagUp[2],stateImagLo[2];                             // (used in updates)
+    qreal   stateRealUp,stateRealLo,                             // storage for previous state values
+           stateImagUp,stateImagLo;                             // (used in updates)
     // ----- temp variables
     long long int thisTask;                                   // task based approach for expose loop with small granularity
-    const long long int numTasks=qureg.numAmpsPerChunk>>1;
-    int controlBit;
+    // const long long int numTasks=qureg.numAmpsPerChunk>>1;
+    // int controlBit;
 
     sizeHalfBlock = 1LL << targetQubit;                               // size of blocks halved
-    sizeBlock     = 2LL * sizeHalfBlock;                           // size of blocks
+    // sizeBlock     = 2LL * sizeHalfBlock;                           // size of blocks
 
     // ---------------------------------------------------------------- //
     //            rotate                                                //
@@ -830,51 +832,56 @@ __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const
     qreal *stateVecImag = qureg.deviceStateVec.imag;
     // qreal alphaImag=alpha.imag, alphaReal=alpha.real;
     // qreal betaImag=beta.imag, betaReal=beta.real;
-    qreal alphaReal,alphaImag,betaReal,betaImag;
+    // qreal alphaReal,alphaImag,betaReal,betaImag;
 
     thisTask = blockIdx.x*blockDim.x + threadIdx.x;
-    if (thisTask>=numTasks) return;
+    if (thisTask>=(qureg.numAmpsPerChunk>>1)) return;
 
-    thisBlock   = thisTask / sizeHalfBlock;
-    indexUp     = thisBlock*sizeBlock + thisTask%sizeHalfBlock;
+    // thisBlock   = thisTask / sizeHalfBlock;
+    indexUp     = (((thisTask/sizeHalfBlock)*sizeHalfBlock) << 1) + thisTask%sizeHalfBlock;
     indexLo     = indexUp + sizeHalfBlock;
 
     // store current state vector values in temp variables
-    stateRealUp[0] = stateVecReal[indexUp];
-    stateImagUp[0] = stateVecImag[indexUp];
+    stateRealUp = stateVecReal[indexUp];
+    stateImagUp = stateVecImag[indexUp];
 
-    stateRealLo[0] = stateVecReal[indexLo];
-    stateImagLo[0] = stateVecImag[indexLo];
+    stateRealLo = stateVecReal[indexLo];
+    stateImagLo = stateVecImag[indexLo];
     int i;
-    int source=0;
-    int des=1;
+    // int source=0;
+    // int des=1;
     for (i=0;i<targetQubit;++i)
     {
-        controlBit = extractBit(i, indexUp);
-        if (controlBit){
-            alphaImag=qureg.deviceparalist[i].imag, alphaReal=qureg.deviceparalist[i].real;
-            betaImag=qureg.deviceparalist[i+32].imag, betaReal=qureg.deviceparalist[i+32].real;
+        // controlBit = extractBit(i, indexUp);
+        if (extractBit(i, indexUp)){
+            qreal alphaImag=qureg.deviceparalist[i].imag, alphaReal=qureg.deviceparalist[i].real;
+            qreal betaImag=qureg.deviceparalist[i+32].imag, betaReal=qureg.deviceparalist[i+32].real;
             // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
-            stateRealUp[des] = alphaReal*stateRealUp[source] - alphaImag*stateImagUp[source] 
-                - betaReal*stateRealLo[source] - betaImag*stateImagLo[source];
-            stateImagUp[des] = alphaReal*stateImagUp[source] + alphaImag*stateRealUp[source] 
-                - betaReal*stateImagLo[source] + betaImag*stateRealLo[source];
+            qreal tempstateRealUp = alphaReal*stateRealUp - alphaImag*stateImagUp
+                - betaReal*stateRealLo - betaImag*stateImagLo;
+            qreal tempstateImagUp = alphaReal*stateImagUp + alphaImag*stateRealUp 
+                - betaReal*stateImagLo + betaImag*stateRealLo;
 
             // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
-            stateRealLo[des] = betaReal*stateRealUp[source] - betaImag*stateImagUp[source] 
-                + alphaReal*stateRealLo[source] + alphaImag*stateImagLo[source];
-            stateImagLo[des] = betaReal*stateImagUp[source] + betaImag*stateRealUp[source] 
-                + alphaReal*stateImagLo[source] - alphaImag*stateRealLo[source];
-            swapint(source, des);
+            qreal tempstateRealLo = betaReal*stateRealUp - betaImag*stateImagUp 
+                + alphaReal*stateRealLo + alphaImag*stateImagLo;
+            qreal tempstateImagLo = betaReal*stateImagUp + betaImag*stateRealUp
+                + alphaReal*stateImagLo - alphaImag*stateRealLo;
+            // swapint(source, des);
+            stateRealUp = tempstateRealUp;
+            stateImagUp = tempstateImagUp;
+
+            stateRealLo = tempstateRealLo;
+            stateImagLo = tempstateImagLo;
         }
     }
     // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
-    stateVecReal[indexUp] = stateRealUp[source];
-    stateVecImag[indexUp] = stateImagUp[source];
+    stateVecReal[indexUp] = stateRealUp;
+    stateVecImag[indexUp] = stateImagUp;
 
     // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
-    stateVecReal[indexLo] = stateRealLo[source];
-    stateVecImag[indexLo] = stateImagLo[source];
+    stateVecReal[indexLo] = stateRealLo;
+    stateVecImag[indexLo] = stateImagLo;
 }
 
 void addpara(Qureg qureg, const int controlQubit, Complex alpha, Complex beta){
