@@ -854,8 +854,8 @@ __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const
     {
         // controlBit = extractBit(i, indexUp);
         if (extractBit(i, indexUp)){
-            qreal alphaImag=qureg.deviceparalist[i].imag, alphaReal=qureg.deviceparalist[i].real;
-            qreal betaImag=qureg.deviceparalist[i+32].imag, betaReal=qureg.deviceparalist[i+32].real;
+            qreal alphaImag=qureg.deviceparalist[i*2].imag, alphaReal=qureg.deviceparalist[i*2].real;
+            qreal betaImag=qureg.deviceparalist[i*2+1].imag, betaReal=qureg.deviceparalist[i*2+1].real;
             // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
             qreal tempstateRealUp = alphaReal*stateRealUp - alphaImag*stateImagUp
                 - betaReal*stateRealLo - betaImag*stateImagLo;
@@ -885,8 +885,8 @@ __global__ void statevec_groupcontrolledCompactUnitaryKernel (Qureg qureg, const
 }
 
 void addpara(Qureg qureg, const int controlQubit, Complex alpha, Complex beta){
-    qureg.paralist[controlQubit] = alpha;
-    qureg.paralist[controlQubit+32] = beta;
+    qureg.paralist[controlQubit*2] = alpha;
+    qureg.paralist[controlQubit*2+1] = beta;
 }
 
 int addcontrolledCompactUnitary(Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta){
