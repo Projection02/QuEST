@@ -1254,16 +1254,18 @@ __global__ void statevec_pauliYKernel(Qureg qureg, const int targetQubit, const 
     long long int thisBlock     = thisTask / sizeHalfBlock;
     long long int indexUp       = thisBlock*sizeBlock + thisTask%sizeHalfBlock;
     long long int indexLo       = indexUp + sizeHalfBlock;
-    qreal  stateRealUp, stateImagUp;
+    qreal  stateRealUp, stateImagUp, stateRealLo, stateImagLo;
 
     qreal *stateVecReal = qureg.deviceStateVec.real;
     qreal *stateVecImag = qureg.deviceStateVec.imag;
     stateRealUp = stateVecReal[indexUp];
     stateImagUp = stateVecImag[indexUp];
+    stateRealLo = stateVecReal[indexLo];
+    stateImagLo = stateVecImag[indexLo];
 
     // update under +-{{0, -i}, {i, 0}}
-    stateVecReal[indexUp] = conjFac * stateVecImag[indexLo];
-    stateVecImag[indexUp] = conjFac * -stateVecReal[indexLo];
+    stateVecReal[indexUp] = conjFac * stateImagLo;
+    stateVecImag[indexUp] = conjFac * -stateRealLo;
     stateVecReal[indexLo] = conjFac * -stateImagUp;
     stateVecImag[indexLo] = conjFac * stateRealUp;
 }
@@ -1291,7 +1293,7 @@ __global__ void statevec_controlledPauliYKernel(Qureg qureg, const int controlQu
     long long int stateVecSize;
     int controlBit;
 
-    qreal   stateRealUp, stateImagUp; 
+    qreal  stateRealUp, stateImagUp, stateRealLo, stateImagLo;
     long long int thisBlock, indexUp, indexLo;                                     
     sizeHalfBlock = 1LL << targetQubit;
     sizeBlock     = 2LL * sizeHalfBlock;
@@ -1308,13 +1310,14 @@ __global__ void statevec_controlledPauliYKernel(Qureg qureg, const int controlQu
 
     controlBit = extractBit(controlQubit, indexUp);
     if (controlBit){
-
         stateRealUp = stateVecReal[indexUp];
         stateImagUp = stateVecImag[indexUp];
+        stateRealLo = stateVecReal[indexLo];
+        stateImagLo = stateVecImag[indexLo];
 
         // update under +-{{0, -i}, {i, 0}}
-        stateVecReal[indexUp] = conjFac * stateVecImag[indexLo];
-        stateVecImag[indexUp] = conjFac * -stateVecReal[indexLo];
+        stateVecReal[indexUp] = conjFac * stateImagLo;
+        stateVecImag[indexUp] = conjFac * -stateRealLo;
         stateVecReal[indexLo] = conjFac * -stateImagUp;
         stateVecImag[indexLo] = conjFac * stateRealUp;
     }
