@@ -177,6 +177,11 @@ __forceinline__ __device__ void jumplist(void *&pointer){
 }
 
 template <typename T>
+__forceinline__ __device__ void jumplist(void *&pointer, const int steplen){
+    pointer = ((T *)pointer)+steplen;
+}
+
+template <typename T>
 __forceinline__ __device__ void poplist(void *&pointer, T &para){
 
     para = *((T *)pointer);

@@ -2936,6 +2936,7 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     qreal *stateVecImag = qureg.deviceStateVec.imag;
 
     thisTask = blockIdx.x*blockDim.x + threadIdx.x;
+    if (thisTask>=qureg.numAmpsPerChunk>>1) return;
 
     // thisBlock   = thisTask / sizeHalfBlock;
     indexUp     = (((thisTask/sizeHalfBlock)*sizeHalfBlock) << 1) + thisTask%sizeHalfBlock;
@@ -2960,13 +2961,13 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
             /* code */
             int controlQubit;
             poplist<int>(listpointer, controlQubit);
+            alignedlist<Complex>(listpointer);
             if (extractBit(controlQubit, indexUp)){
+
                 Complex alpha,beta;
-                alignedlist<Complex>(listpointer);
                 poplist<Complex>(listpointer, alpha);
                 poplist<Complex>(listpointer, beta);
-                // qreal& alphaImag=alpha.imag, alphaReal=alpha.real;
-                // qreal& betaImag=beta.imag, betaReal=beta.real;
+
                 // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
                 qreal tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
                     - beta.real*stateRealLo - beta.imag*stateImagLo;
@@ -2986,9 +2987,7 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
                 stateImagLo = tempstateImagLo;
             }
             else{
-                alignedlist<Complex>(listpointer);
-                jumplist<Complex>(listpointer);
-                jumplist<Complex>(listpointer);
+                jumplist<Complex>(listpointer, 2);
             }
             break;
         }
