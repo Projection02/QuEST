@@ -803,9 +803,9 @@ void statevec_controlledCompactUnitary(Qureg qureg, const int controlQubit, cons
     // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
     // statevec_controlledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, alpha, beta);
     scheduler->addfunc(qureg, targetQubit, CCU);
-    scheduler->pushlist<int>(controlQubit);
-    scheduler->pushlist<Complex>(alpha);
-    scheduler->pushlist<Complex>(beta);
+    scheduler->push4<int>(controlQubit);
+    scheduler->push16<Complex>(alpha);
+    scheduler->push16<Complex>(beta);
 }
 
 __global__ void statevec_unitaryKernel(Qureg qureg, const int targetQubit, ArgMatrix2 u){
@@ -2918,7 +2918,7 @@ void seedQuESTDefault(){
     init_by_array(key, 2); 
 }  
 
-__global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int targetQubit, void *const list){
+__global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int targetQubit, void *const list4, void *const list16){
     // ----- sizes
     long long int sizeHalfBlock;                                       // size of blocks halved
     // ----- indices
@@ -2951,23 +2951,24 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
 
     int i;
     func functype;
-    void *listpointer = list;
+    void *thislist4 = list4;
+    void *thislist16 = list16;
     for (i=0;i<funccount;++i)
     {
-        poplist<func>(listpointer, functype);
+        itor<func>(thislist4, functype);
+        // printf("itor success");
         switch (functype)
         {
         case CCU:{
             /* code */
             int controlQubit;
-            poplist<int>(listpointer, controlQubit);
-            alignedlist<Complex>(listpointer);
+            itor<int>(thislist4, controlQubit);
             if (extractBit(controlQubit, indexUp)){
 
                 Complex alpha,beta;
-                poplist<Complex>(listpointer, alpha);
-                poplist<Complex>(listpointer, beta);
-
+                itor<Complex>(thislist16, alpha);
+                itor<Complex>(thislist16, beta);
+                // printf("itor16 success");
                 // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
                 qreal tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
                     - beta.real*stateRealLo - beta.imag*stateImagLo;
@@ -2987,7 +2988,7 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
                 stateImagLo = tempstateImagLo;
             }
             else{
-                jumplist<Complex>(listpointer, 2);
+                jump<Complex>(thislist16, 2);
             }
             break;
         }
@@ -3023,7 +3024,6 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     stateVecReal[indexLo] = stateRealLo;
     stateVecImag[indexLo] = stateImagLo;
 }
-
 
 #ifdef __cplusplus
 }
