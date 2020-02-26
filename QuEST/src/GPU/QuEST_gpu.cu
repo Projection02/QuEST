@@ -803,9 +803,9 @@ void statevec_controlledCompactUnitary(Qureg qureg, const int controlQubit, cons
     // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
     // statevec_controlledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, alpha, beta);
     scheduler->addfunc(qureg, targetQubit, CCU);
-    scheduler->push4<int>(controlQubit);
-    scheduler->push16<Complex>(alpha);
-    scheduler->push16<Complex>(beta);
+    scheduler->push<int>(controlQubit);
+    scheduler->push<Complex>(alpha);
+    scheduler->push<Complex>(beta);
 }
 
 __global__ void statevec_unitaryKernel(Qureg qureg, const int targetQubit, ArgMatrix2 u){
@@ -2918,7 +2918,7 @@ void seedQuESTDefault(){
     init_by_array(key, 2); 
 }  
 
-__global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int targetQubit, void *const list4, void *const list16){
+__global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int targetQubit, void* const list16, void* const list4){
     // ----- sizes
     long long int sizeHalfBlock;                                       // size of blocks halved
     // ----- indices
@@ -2949,26 +2949,20 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     stateRealLo = stateVecReal[indexLo];
     stateImagLo = stateVecImag[indexLo];
 
-    int i;
     func functype;
     void *thislist4 = list4;
     void *thislist16 = list16;
-    for (i=0;i<funccount;++i)
-    {
+    for (int i=0;i<funccount;++i){
         itor<func>(thislist4, functype);
-        // printf("itor success");
-        switch (functype)
-        {
+        switch (functype){
         case CCU:{
-            /* code */
             int controlQubit;
             itor<int>(thislist4, controlQubit);
             if (extractBit(controlQubit, indexUp)){
-
                 Complex alpha,beta;
                 itor<Complex>(thislist16, alpha);
                 itor<Complex>(thislist16, beta);
-                // printf("itor16 success");
+
                 // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
                 qreal tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
                     - beta.real*stateRealLo - beta.imag*stateImagLo;
