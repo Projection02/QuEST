@@ -264,6 +264,8 @@ void Scheduler::launch(Qureg qureg){
             devicesize = datacountall/16*16+16;
             if (cudaSuccess != cudaMalloc(&device, devicesize)) printf("cudamalloc failed!\n");
         }
+        threadsPerCUDABlock = 128;
+        CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
 
         cudaMemcpy(device, combinlist->getbegin(), datacountall, cudaMemcpyHostToDevice);
         statevec_groupKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, funccount, targetQubit, device, (char*)device+datacount16);
