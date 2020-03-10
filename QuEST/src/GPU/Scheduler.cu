@@ -4,7 +4,7 @@
 
 #define INIT_LIST_SIZE 2048
 
-enum func {CCU, HDM};
+enum func {CCU, HDM, PSBT, CN, CU, PX, PY, CPY};
 
 class List
 {
@@ -58,6 +58,12 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
 //accept func
 __global__ void statevec_controlledCompactUnitaryKernel (Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta);
 __global__ void statevec_hadamardKernel (Qureg qureg, const int targetQubit);
+__global__ void statevec_phaseShiftByTermKernel(Qureg qureg, const int targetQubit, qreal cosAngle, qreal sinAngle);
+__global__ void statevec_controlledNotKernel(Qureg qureg, const int controlQubit, const int targetQubit);
+__global__ void statevec_compactUnitaryKernel (Qureg qureg, const int rotQubit, Complex alpha, Complex beta);
+__global__ void statevec_pauliXKernel(Qureg qureg, const int targetQubit);
+__global__ void statevec_pauliYKernel(Qureg qureg, const int targetQubit, const int conjFac);
+__global__ void statevec_controlledPauliYKernel(Qureg qureg, const int controlQubit, const int targetQubit, const int conjFac);
 
 #ifdef __cplusplus
 }
@@ -184,44 +190,72 @@ void Scheduler::addfunc(Qureg qureg, const int newtargetQubit, func functype){
 void Scheduler::launch(Qureg qureg){
     if (funccount==0) return;
     
-    //re-launch
+    int threadsPerCUDABlock, CUDABlocks;
+    threadsPerCUDABlock = 512;
+    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+
     if (funccount==1){
+        //re-launch
         func thisfunc;
         itor<func>(thisfunc);
         switch (thisfunc)
         {
         case CCU:{
-            int threadsPerCUDABlock, CUDABlocks;
-            threadsPerCUDABlock = 128;
-            /* code */
             int controlQubit;
             Complex alpha,beta;
             itor<int>(controlQubit);
             itor<Complex>(alpha);
             itor<Complex>(beta);
-            CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
             statevec_controlledCompactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, alpha, beta);
             break;
         }
-        
         case HDM:{
-            /* code */
-            int threadsPerCUDABlock, CUDABlocks;
-            threadsPerCUDABlock = 128;
-            CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
             statevec_hadamardKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
             break;
         }
-        
+        case PSBT:{
+            Complex term;
+            itor<Complex>(term);
+            // qreal cosAngle = term.real;
+            // qreal sinAngle = term.imag;
+            statevec_phaseShiftByTermKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, term.real, term.imag);
+            break;
+        }
+        case CN:{
+            int controlQubit;
+            itor<int>(controlQubit);
+            statevec_controlledNotKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit);
+            break;
+        }
+        case CU:{
+            Complex alpha,beta;
+            itor<Complex>(alpha);
+            itor<Complex>(beta);
+            statevec_compactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, alpha, beta);
+            break;
+        }
+        case PX:{
+            statevec_pauliXKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
+            break;
+        }
+        case PY:{
+            int conjFactor;
+            itor<int>(conjFactor);
+            statevec_pauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, conjFactor);
+            break;
+        }
+        case CPY:{
+            int controlQubit, conjFactor;
+            itor<int>(controlQubit);
+            itor<int>(conjFactor);
+            statevec_controlledPauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, conjFactor);
+            break;
+        }
         default:
             break;
         }
     }
     else{
-        int threadsPerCUDABlock, CUDABlocks;
-        threadsPerCUDABlock = 512;
-        CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-
         size_t datacount16 = combinlist->copy(list16);
         size_t datacountall = combinlist->copy(list4);
 

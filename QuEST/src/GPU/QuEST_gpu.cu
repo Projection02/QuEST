@@ -730,11 +730,13 @@ __global__ void statevec_compactUnitaryKernel (Qureg qureg, const int rotQubit, 
 
 void statevec_compactUnitary(Qureg qureg, const int targetQubit, Complex alpha, Complex beta) 
 {
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_compactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, alpha, beta);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_compactUnitaryKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, alpha, beta);
+    scheduler->addfunc(qureg, targetQubit, CU);
+    scheduler->push<Complex>(alpha);
+    scheduler->push<Complex>(beta);
 }
 
 __global__ void statevec_controlledCompactUnitaryKernel (Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta){
@@ -1256,11 +1258,11 @@ __global__ void statevec_pauliXKernel(Qureg qureg, const int targetQubit){
 
 void statevec_pauliX(Qureg qureg, const int targetQubit) 
 {
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_pauliXKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_pauliXKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit);
+    scheduler->addfunc(qureg, targetQubit, PX);
 }
 
 __global__ void statevec_pauliYKernel(Qureg qureg, const int targetQubit, const int conjFac){
@@ -1292,20 +1294,22 @@ __global__ void statevec_pauliYKernel(Qureg qureg, const int targetQubit, const 
 
 void statevec_pauliY(Qureg qureg, const int targetQubit) 
 {
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_pauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, 1);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_pauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, 1);
+    scheduler->addfunc(qureg, targetQubit, PY);
+    scheduler->push<int>(1);
 }
 
 void statevec_pauliYConj(Qureg qureg, const int targetQubit) 
 {
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_pauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, -1);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_pauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, -1);
+    scheduler->addfunc(qureg, targetQubit, PY);
+    scheduler->push<int>(-1);
 }
 
 __global__ void statevec_controlledPauliYKernel(Qureg qureg, const int controlQubit, const int targetQubit, const int conjFac)
@@ -1347,22 +1351,26 @@ __global__ void statevec_controlledPauliYKernel(Qureg qureg, const int controlQu
 
 void statevec_controlledPauliY(Qureg qureg, const int controlQubit, const int targetQubit)
 {
-    int conjFactor = 1;
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_controlledPauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, conjFactor);
+    // int conjFactor = 1;
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_controlledPauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, conjFactor);
+    scheduler->addfunc(qureg, targetQubit, CPY);
+    scheduler->push<int>(controlQubit);
+    scheduler->push<int>(1);
 }
 
 void statevec_controlledPauliYConj(Qureg qureg, const int controlQubit, const int targetQubit)
 {
-    int conjFactor = -1;
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_controlledPauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, conjFactor);
+    // int conjFactor = -1;
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_controlledPauliYKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit, conjFactor);
+    scheduler->addfunc(qureg, targetQubit, CPY);
+    scheduler->push<int>(controlQubit);
+    scheduler->push<int>(-1);
 }
 
 __global__ void statevec_phaseShiftByTermKernel(Qureg qureg, const int targetQubit, qreal cosAngle, qreal sinAngle) {
@@ -1395,14 +1403,15 @@ __global__ void statevec_phaseShiftByTermKernel(Qureg qureg, const int targetQub
 
 void statevec_phaseShiftByTerm(Qureg qureg, const int targetQubit, Complex term)
 {   
-    qreal cosAngle = term.real;
-    qreal sinAngle = term.imag;
+    // qreal cosAngle = term.real;
+    // qreal sinAngle = term.imag;
     
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_phaseShiftByTermKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, cosAngle, sinAngle);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_phaseShiftByTermKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, targetQubit, cosAngle, sinAngle);
+    scheduler->addfunc(qureg, targetQubit, PSBT);
+    scheduler->push<Complex>(term);
 }
 
 __global__ void statevec_controlledPhaseShiftKernel(Qureg qureg, const int idQubit1, const int idQubit2, qreal cosAngle, qreal sinAngle)
@@ -1752,11 +1761,12 @@ __global__ void statevec_controlledNotKernel(Qureg qureg, const int controlQubit
 
 void statevec_controlledNot(Qureg qureg, const int controlQubit, const int targetQubit)
 {
-    int threadsPerCUDABlock, CUDABlocks;
-    threadsPerCUDABlock = 128;
-    CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
-    scheduler->launch(qureg);
-    statevec_controlledNotKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit);
+    // int threadsPerCUDABlock, CUDABlocks;
+    // threadsPerCUDABlock = 128;
+    // CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+    // statevec_controlledNotKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, controlQubit, targetQubit);
+    scheduler->addfunc(qureg, targetQubit, CN);
+    scheduler->push<int>(controlQubit);
 }
 
 __device__ __host__ unsigned int log2Int( unsigned int x )
@@ -2926,6 +2936,8 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     // ----- temp variables
     qreal   stateRealUp,stateRealLo,                             // storage for previous state values
            stateImagUp,stateImagLo;                             // (used in updates)
+    qreal   tempstateRealUp,tempstateRealLo,                             // storage for previous state values
+           tempstateImagUp,tempstateImagLo;                             // (used in updates)
     // ----- temp variables
     long long int thisTask;                                   // task based approach for expose loop with small granularity
 
@@ -2954,25 +2966,23 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     void *thislist16 = list16;
     for (int i=0;i<funccount;++i){
         itor<func>(thislist4, functype);
-        switch (functype){
-        case CCU:{
+        if (functype == CCU ){
             int controlQubit;
+            Complex alpha,beta;
             itor<int>(thislist4, controlQubit);
+            itor<Complex>(thislist16, alpha);
+            itor<Complex>(thislist16, beta);
             if (extractBit(controlQubit, indexUp)){
-                Complex alpha,beta;
-                itor<Complex>(thislist16, alpha);
-                itor<Complex>(thislist16, beta);
-
                 // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
-                qreal tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
+                tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
                     - beta.real*stateRealLo - beta.imag*stateImagLo;
-                qreal tempstateImagUp = alpha.real*stateImagUp + alpha.imag*stateRealUp 
+                tempstateImagUp = alpha.real*stateImagUp + alpha.imag*stateRealUp 
                     - beta.real*stateImagLo + beta.imag*stateRealLo;
 
                 // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
-                qreal tempstateRealLo = beta.real*stateRealUp - beta.imag*stateImagUp 
+                tempstateRealLo = beta.real*stateRealUp - beta.imag*stateImagUp 
                     + alpha.real*stateRealLo + alpha.imag*stateImagLo;
-                qreal tempstateImagLo = beta.real*stateImagUp + beta.imag*stateRealUp
+                tempstateImagLo = beta.real*stateImagUp + beta.imag*stateRealUp
                     + alpha.real*stateImagLo - alpha.imag*stateRealLo;
 
                 stateRealUp = tempstateRealUp;
@@ -2980,35 +2990,121 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
 
                 stateRealLo = tempstateRealLo;
                 stateImagLo = tempstateImagLo;
-            }
-            else{
-                jump<Complex>(thislist16, 2);
-            }
-            break;
+            } 
+            __syncwarp();
         }
         
-        case HDM:{
+        else if (functype == HDM ){
+            const qreal recRoot2 = 1/sqrt(2.0);
+            tempstateRealUp = recRoot2*(stateRealUp + stateRealLo);
+            tempstateImagUp = recRoot2*(stateImagUp + stateImagLo);
 
-            /* code */
-            qreal recRoot2 = 1.0/sqrt(2.0);
-
-            qreal tempstateRealUp = recRoot2*(stateRealUp + stateRealLo);
-            qreal tempstateImagUp = recRoot2*(stateImagUp + stateImagLo);
-
-            qreal tempstateRealLo = recRoot2*(stateRealUp - stateRealLo);
-            qreal tempstateImagLo = recRoot2*(stateImagUp - stateImagLo);
+            tempstateRealLo = recRoot2*(stateRealUp - stateRealLo);
+            tempstateImagLo = recRoot2*(stateImagUp - stateImagLo);
 
             stateRealUp = tempstateRealUp;
             stateImagUp = tempstateImagUp;
 
             stateRealLo = tempstateRealLo;
             stateImagLo = tempstateImagLo;
-            break;
         }
-        
-        default:
-            break;
+
+        else if (functype == PSBT ){
+            Complex term;
+            itor<Complex>(thislist16, term);
+            tempstateRealLo = stateRealLo;
+            tempstateImagLo = stateImagLo;
+
+            stateRealLo = term.real*tempstateRealLo - term.imag*tempstateImagLo;
+            stateImagLo = term.imag*tempstateRealLo + term.real*tempstateImagLo;
         }
+
+        else if (functype == CN ){
+            int controlQubit;
+            itor<int>(thislist4, controlQubit);
+            if (extractBit(controlQubit, indexUp)){
+                tempstateRealUp = stateRealUp;
+                tempstateImagUp = stateImagUp;
+
+                stateRealUp = stateRealLo;
+                stateImagUp = stateImagLo;
+
+                stateRealLo = tempstateRealUp;
+                stateImagLo = tempstateImagUp;
+            }
+            __syncwarp();
+            
+        }
+
+        else if (functype == CU ){
+            Complex alpha,beta;
+            itor<Complex>(thislist16, alpha);
+            itor<Complex>(thislist16, beta);
+
+            // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
+            tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
+                - beta.real*stateRealLo - beta.imag*stateImagLo;
+            tempstateImagUp = alpha.real*stateImagUp + alpha.imag*stateRealUp 
+                - beta.real*stateImagLo + beta.imag*stateRealLo;
+
+            // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
+            tempstateRealLo = beta.real*stateRealUp - beta.imag*stateImagUp 
+                + alpha.real*stateRealLo + alpha.imag*stateImagLo;
+            tempstateImagLo = beta.real*stateImagUp + beta.imag*stateRealUp
+                + alpha.real*stateImagLo - alpha.imag*stateRealLo;
+
+            stateRealUp = tempstateRealUp;
+            stateImagUp = tempstateImagUp;
+
+            stateRealLo = tempstateRealLo;
+            stateImagLo = tempstateImagLo;
+            
+        }
+
+        else if (functype == PX ){
+            tempstateRealUp = stateRealUp;
+            tempstateImagUp = stateImagUp;
+
+            stateRealUp = stateRealLo;
+            stateImagUp = stateImagLo;
+
+            stateRealLo = tempstateRealUp;
+            stateImagLo = tempstateImagUp;
+        }
+
+        else if (functype == PY ){
+            int conjFac;
+            itor<int>(thislist4, conjFac);
+
+            tempstateRealUp = stateRealUp;
+            tempstateImagUp = stateImagUp;
+
+            stateRealUp = conjFac * stateImagLo;
+            stateImagUp = conjFac * -stateRealLo;
+
+            stateRealLo = conjFac * -tempstateImagUp;
+            stateImagLo = conjFac * tempstateRealUp;
+            
+        }
+        else if (functype == CPY ){
+            int controlQubit;
+            int conjFac;
+            itor<int>(thislist4, controlQubit);
+            itor<int>(thislist4, conjFac);
+            if (extractBit(controlQubit, indexUp)){
+
+                tempstateRealUp = stateRealUp;
+                tempstateImagUp = stateImagUp;
+
+                stateRealUp = conjFac * stateImagLo;
+                stateImagUp = conjFac * -stateRealLo;
+
+                stateRealLo = conjFac * -tempstateImagUp;
+                stateImagLo = conjFac * tempstateRealUp;
+            }
+            __syncwarp();
+        }
+
     }
     // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
     stateVecReal[indexUp] = stateRealUp;
