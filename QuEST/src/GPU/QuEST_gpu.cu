@@ -3115,6 +3115,96 @@ __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int
     stateVecImag[indexLo] = stateImagLo;
 }
 
+__global__ void statevec_CCU_HDMKernel(Qureg qureg, const int funccount, const int targetQubit, void* const list16, void* const list4){
+    // ----- sizes
+    long long int sizeHalfBlock;                                       // size of blocks halved
+    // ----- indices
+    long long int indexUp,indexLo;                                     // current index and corresponding index in lower half block
+    // ----- temp variables
+    qreal   stateRealUp,stateRealLo,                             // storage for previous state values
+           stateImagUp,stateImagLo;                             // (used in updates)
+    qreal   tempstateRealUp,tempstateRealLo,                             // storage for previous state values
+           tempstateImagUp,tempstateImagLo;                             // (used in updates)
+    // ----- temp variables
+    long long int thisTask;                                   // task based approach for expose loop with small granularity
+
+    sizeHalfBlock = 1LL << targetQubit;                               // size of blocks halved
+
+    //! fix -- no necessary for GPU version
+    qreal *stateVecReal = qureg.deviceStateVec.real;
+    qreal *stateVecImag = qureg.deviceStateVec.imag;
+
+    thisTask = blockIdx.x*blockDim.x + threadIdx.x;
+    if (thisTask>=qureg.numAmpsPerChunk>>1) return;
+
+    // thisBlock   = thisTask / sizeHalfBlock;
+    indexUp     = (((thisTask/sizeHalfBlock)*sizeHalfBlock) << 1) + thisTask%sizeHalfBlock;
+    indexLo     = indexUp + sizeHalfBlock;
+
+    // store current state vector values in temp variables
+    stateRealUp = stateVecReal[indexUp];
+    stateImagUp = stateVecImag[indexUp];
+
+    stateRealLo = stateVecReal[indexLo];
+    stateImagLo = stateVecImag[indexLo];
+
+    func functype;
+    void *thislist4 = list4;
+    void *thislist16 = list16;
+    for (int i=0;i<funccount;++i){
+        itor<func>(thislist4, functype);
+        if (functype == CCU ){
+            int controlQubit;
+            Complex alpha,beta;
+            itor<int>(thislist4, controlQubit);
+            itor<Complex>(thislist16, alpha);
+            itor<Complex>(thislist16, beta);
+            if (extractBit(controlQubit, indexUp)){
+                // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
+                tempstateRealUp = alpha.real*stateRealUp - alpha.imag*stateImagUp
+                    - beta.real*stateRealLo - beta.imag*stateImagLo;
+                tempstateImagUp = alpha.real*stateImagUp + alpha.imag*stateRealUp 
+                    - beta.real*stateImagLo + beta.imag*stateRealLo;
+
+                // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
+                tempstateRealLo = beta.real*stateRealUp - beta.imag*stateImagUp 
+                    + alpha.real*stateRealLo + alpha.imag*stateImagLo;
+                tempstateImagLo = beta.real*stateImagUp + beta.imag*stateRealUp
+                    + alpha.real*stateImagLo - alpha.imag*stateRealLo;
+
+                stateRealUp = tempstateRealUp;
+                stateImagUp = tempstateImagUp;
+
+                stateRealLo = tempstateRealLo;
+                stateImagLo = tempstateImagLo;
+            }
+        }
+        
+        else{
+            const qreal recRoot2 = 1/sqrt(2.0);
+            tempstateRealUp = recRoot2*(stateRealUp + stateRealLo);
+            tempstateImagUp = recRoot2*(stateImagUp + stateImagLo);
+
+            tempstateRealLo = recRoot2*(stateRealUp - stateRealLo);
+            tempstateImagLo = recRoot2*(stateImagUp - stateImagLo);
+
+            stateRealUp = tempstateRealUp;
+            stateImagUp = tempstateImagUp;
+
+            stateRealLo = tempstateRealLo;
+            stateImagLo = tempstateImagLo;
+        }
+
+    }
+    // state[indexUp] = alpha * state[indexUp] - conj(beta)  * state[indexLo]
+    stateVecReal[indexUp] = stateRealUp;
+    stateVecImag[indexUp] = stateImagUp;
+
+    // state[indexLo] = beta  * state[indexUp] + conj(alpha) * state[indexLo]
+    stateVecReal[indexLo] = stateRealLo;
+    stateVecImag[indexLo] = stateImagLo;
+}
+
 #ifdef __cplusplus
 }
 #endif

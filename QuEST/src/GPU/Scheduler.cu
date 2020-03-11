@@ -37,10 +37,12 @@ private:
     List* combinlist;
     int targetQubit;
     int funccount;
+    unsigned int funcflag;
     size_t devicesize;
     void* device;
     void reset();
     template <typename T> List* listof();
+    void setflag(func functype);
 public:
     Scheduler();
     ~Scheduler();
@@ -55,6 +57,7 @@ extern "C" {
 #endif
 
 __global__ void statevec_groupKernel(Qureg qureg, const int funccount, const int targetQubit, void* const list16, void* const list4);
+__global__ void statevec_CCU_HDMKernel(Qureg qureg, const int funccount, const int targetQubit, void* const list16, void* const list4);
 //accept func
 __global__ void statevec_controlledCompactUnitaryKernel (Qureg qureg, const int controlQubit, const int targetQubit, Complex alpha, Complex beta);
 __global__ void statevec_hadamardKernel (Qureg qureg, const int targetQubit);
@@ -148,6 +151,7 @@ Scheduler::~Scheduler(){
 
 void Scheduler::reset(){
     funccount = 0;
+    funcflag = 0;
     targetQubit = -1;
     list4->reset();
     list16->reset();
@@ -164,6 +168,11 @@ List* Scheduler::listof(){
         return list16;
     }
     return list4;
+}
+
+void Scheduler::setflag(func functype){
+    unsigned int mask = (unsigned int)1 << (unsigned int)functype;
+    funcflag = funcflag | mask;
 }
 
 template <typename T>
@@ -184,6 +193,7 @@ void Scheduler::addfunc(Qureg qureg, const int newtargetQubit, func functype){
     if ((newtargetQubit != targetQubit) && (funccount != 0)) launch(qureg);
     targetQubit = newtargetQubit;
     push<func>(functype);
+    setflag(functype);
     ++funccount;
 }
 
@@ -264,11 +274,24 @@ void Scheduler::launch(Qureg qureg){
             devicesize = datacountall/16*16+16;
             if (cudaSuccess != cudaMalloc(&device, devicesize)) printf("cudamalloc failed!\n");
         }
-        threadsPerCUDABlock = 128;
-        CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
 
         cudaMemcpy(device, combinlist->getbegin(), datacountall, cudaMemcpyHostToDevice);
-        statevec_groupKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, funccount, targetQubit, device, (char*)device+datacount16);
+
+        if (funccount <= 2)
+        {
+            threadsPerCUDABlock = 512;
+        }
+        else{
+            threadsPerCUDABlock = 128;
+        }
+        CUDABlocks = ceil((qreal)(qureg.numAmpsPerChunk>>1)/threadsPerCUDABlock);
+        
+        if (funcflag <= 3){
+            statevec_CCU_HDMKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, funccount, targetQubit, device, (char*)device+datacount16);
+        }
+        else{
+            statevec_groupKernel<<<CUDABlocks, threadsPerCUDABlock>>>(qureg, funccount, targetQubit, device, (char*)device+datacount16);
+        }
     }
 
     reset();
